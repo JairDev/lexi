@@ -1,3 +1,4 @@
+let textInfo = "";
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason !== "install" && details.reason !== "update") return;
 
@@ -9,15 +10,15 @@ chrome.runtime.onInstalled.addListener((details) => {
   let isLogin = false;
   chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     console.log(info.selectionText);
+    textInfo = info.selectionText;
     // await chrome.storage.local.remove("authToken");
 
     const authTokenStorage = await chrome.storage.local.get("authToken");
-    // if (Object.keys(authTokenStorage).length > 0) {
-    //   console.log("authTokenStorage", authTokenStorage);
-    //   // createPage(authTokenStorage.authToken, info.selectionText);
-    // } else {
-    //   startAuthenticationFlow();
-    // }
+    if (Object.keys(authTokenStorage).length > 0) {
+      isLogin = true;
+      console.log("authTokenStorage", authTokenStorage);
+      // createPage(authTokenStorage.authToken, info.selectionText);
+    }
 
     (async function getCurrentTab() {
       let queryOptions = { active: true, lastFocusedWindow: true };
@@ -29,7 +30,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       await chrome.tabs.sendMessage(tab.id, {
         type: "openModal",
         message: {
-          text: info.selectionText,
+          text: textInfo,
           login: isLogin ? true : false,
         },
       });
@@ -54,50 +55,28 @@ async function handleAuthenticationResponse(redirectUri) {
   const result = await response.json();
   console.log(result);
   await chrome.storage.local.set({ authToken: result?.data?.access_token });
+  let queryOptions = { active: true, lastFocusedWindow: true };
+  let [tab] = await chrome.tabs.query(queryOptions);
+  console.log(tab);
+  await chrome.tabs.sendMessage(tab.id, {
+    type: "login",
+    message: {
+      text: textInfo,
+      login: true,
+    },
+  });
 }
 
 async function createPage(token, text) {
-  const postPage = await fetch(
-    "https://api.notion.com/v1/blocks/e049fa81a9214667b2dd35937f6b65df/children",
-    {
-      method: "PATCH",
-      headers: {
-        accept: "application/json",
-        "Notion-Version": "2022-06-28",
-        "content-type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        children: [
-          {
-            heading_2: {
-              rich_text: [
-                {
-                  text: {
-                    content: `${text}`,
-                  },
-                },
-              ],
-              children: [
-                {
-                  paragraph: {
-                    rich_text: [
-                      {
-                        text: {
-                          content: "Paragraph",
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-              is_toggleable: true,
-            },
-          },
-        ],
-      }),
-    }
-  );
+  const postPage = await fetch("http://localhost:5400/v1/post", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "Notion-Version": "2022-06-28",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ token: token, data: text }),
+  });
 
   const resultPostPage = await postPage.json();
   console.log(resultPostPage);
@@ -136,9 +115,13 @@ function startAuthenticationFlow() {
     }
   );
 }
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (!request.isLogged) {
-    console.log(request);
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+  const authTokenStorage = await chrome.storage.local.get("authToken");
+  if (!request.login) {
+    console.log("login", request);
     startAuthenticationFlow();
+  } else {
+    console.log("isLogged", request);
+    createPage(authTokenStorage.authToken, request.text);
   }
 });

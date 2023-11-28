@@ -19,24 +19,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const suggestionText = document.createElement("p");
     const button = document.createElement("button");
     const a = document.createElement("a");
-
     modalLayout.classList.add("modal-layout");
     wrapperSelectedTextDiv.classList.add("wrapper-content");
     wrapperTranslateTextDiv.classList.add("wrapper-content");
     wrapperSuggestionTextDiv.classList.add("wrapper-content");
-
     selectedTextTitle.classList.add("title");
     translateTextTitle.classList.add("title");
     suggestionTextTitle.classList.add("title");
-
     contentSelectedText.classList.add("text-content");
     contentTranslateText.classList.add("text-content");
     contentSuggestionText.classList.add("text-content");
-
     selectedText.setAttribute("id", "selected-text1");
     translateText.setAttribute("id", "selected-text2");
     suggestionText.setAttribute("id", "selected-text3");
-
     // button.classList.add("save-button-my-extension");
     // button.setAttribute("id", "buton-extension");
     a.setAttribute("id", "buton-extension");
@@ -44,25 +39,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     //   "href",
     //   "https://api.notion.com/v1/oauth/authorize?client_id=6fe491a5-3b72-49a2-b321-66db7eb26c21&response_type=code"
     // );
-
     wrapperSelectedTextDiv.appendChild(selectedTextTitle);
     wrapperSelectedTextDiv.appendChild(contentSelectedText);
     selectedTextTitle.innerText = "Selected text";
     selectedText.innerText = request?.message?.text;
     contentSelectedText.appendChild(selectedText);
-
     wrapperTranslateTextDiv.appendChild(translateTextTitle);
     wrapperTranslateTextDiv.appendChild(contentTranslateText);
     translateTextTitle.innerText = "Translate text";
     translateText.innerText = getTranslate();
     contentTranslateText.appendChild(translateText);
-
     wrapperSuggestionTextDiv.appendChild(suggestionTextTitle);
     wrapperSuggestionTextDiv.appendChild(contentSuggestionText);
     suggestionTextTitle.innerText = "Suggestion text";
     suggestionText.innerText = getSugestion();
     contentSuggestionText.appendChild(suggestionText);
-
     modalLayout.appendChild(wrapperSelectedTextDiv);
     modalLayout.appendChild(wrapperTranslateTextDiv);
     modalLayout.appendChild(wrapperSuggestionTextDiv);
@@ -70,16 +61,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // button.innerText = "Save to notion";aa
     a.innerText = request.message.login ? "Save to notion" : "Login";
     body.insertAdjacentElement("afterbegin", modalLayout);
-
+    console.log(request.message);
     a.addEventListener("click", () => {
       // document.body.removeChild(modalLayout);
-      sendMessage(request.message.login);
+      sendMessage(request.message);
     });
   }
 });
 
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+  const authTokenStorage = await chrome.storage.local.get("authToken");
+  console.log(authTokenStorage);
+  const button = document.querySelector("#buton-extension");
+  if (button && request.message.login) {
+    button.innerText = "Save to notion";
+    // button.addEventListener("click", () => {
+    //   // document.body.removeChild(modalLayout);
+    //   sendMessage(request.message);
+    // });
+  }
+});
+
 function sendMessage(message) {
-  chrome.runtime.sendMessage({ isLogged: message });
+  chrome.runtime.sendMessage(message);
 }
 
 function getTranslate() {
