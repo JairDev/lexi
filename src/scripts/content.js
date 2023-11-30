@@ -1,77 +1,101 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "openModal") {
-    const translate = getTranslate();
-    // console.log(translate);
-    // console.log(sendResponse);
+    // const translate = getTranslate();
+    // // console.log(translate);
+    // // console.log(sendResponse);
     const body = document.querySelector("body");
+    const root = document.createElement("div");
+    root.setAttribute("class", "root");
+    const shadow = root.attachShadow({ mode: "open" });
     const modalLayout = document.createElement("div");
-    const wrapperSelectedTextDiv = document.createElement("div");
-    const wrapperTranslateTextDiv = document.createElement("div");
-    const wrapperSuggestionTextDiv = document.createElement("div");
-    const selectedTextTitle = document.createElement("p");
-    const translateTextTitle = document.createElement("p");
-    const suggestionTextTitle = document.createElement("p");
-    const contentSelectedText = document.createElement("div");
-    const contentTranslateText = document.createElement("div");
-    const contentSuggestionText = document.createElement("div");
-    const selectedText = document.createElement("p");
-    const translateText = document.createElement("p");
-    const suggestionText = document.createElement("p");
-    const button = document.createElement("button");
-    const a = document.createElement("a");
-    modalLayout.classList.add("modal-layout");
-    wrapperSelectedTextDiv.classList.add("wrapper-content");
-    wrapperTranslateTextDiv.classList.add("wrapper-content");
-    wrapperSuggestionTextDiv.classList.add("wrapper-content");
-    selectedTextTitle.classList.add("title");
-    translateTextTitle.classList.add("title");
-    suggestionTextTitle.classList.add("title");
-    contentSelectedText.classList.add("text-content");
-    contentTranslateText.classList.add("text-content");
-    contentSuggestionText.classList.add("text-content");
-    selectedText.setAttribute("id", "selected-text1");
-    translateText.setAttribute("id", "selected-text2");
-    suggestionText.setAttribute("id", "selected-text3");
-    // button.classList.add("save-button-my-extension");
-    // button.setAttribute("id", "buton-extension");
-    a.setAttribute("id", "buton-extension");
-    // a.setAttribute(
-    //   "href",
-    //   "https://api.notion.com/v1/oauth/authorize?client_id=6fe491a5-3b72-49a2-b321-66db7eb26c21&response_type=code"
-    // );
-    wrapperSelectedTextDiv.appendChild(selectedTextTitle);
-    wrapperSelectedTextDiv.appendChild(contentSelectedText);
-    selectedTextTitle.innerText = "Selected text";
-    selectedText.innerText = request?.message?.text;
-    contentSelectedText.appendChild(selectedText);
-    wrapperTranslateTextDiv.appendChild(translateTextTitle);
-    wrapperTranslateTextDiv.appendChild(contentTranslateText);
-    translateTextTitle.innerText = "Translate text";
-    translateText.innerText = getTranslate();
-    contentTranslateText.appendChild(translateText);
-    wrapperSuggestionTextDiv.appendChild(suggestionTextTitle);
-    wrapperSuggestionTextDiv.appendChild(contentSuggestionText);
-    suggestionTextTitle.innerText = "Suggestion text";
-    suggestionText.innerText = getSugestion();
-    contentSuggestionText.appendChild(suggestionText);
-    modalLayout.appendChild(wrapperSelectedTextDiv);
-    modalLayout.appendChild(wrapperTranslateTextDiv);
-    modalLayout.appendChild(wrapperSuggestionTextDiv);
-    modalLayout.appendChild(a);
-    // button.innerText = "Save to notion";aa
-    a.innerText = request.message.login ? "Save to notion" : "Login";
-    body.insertAdjacentElement("afterbegin", modalLayout);
-    console.log(request.message);
-    a.addEventListener("click", () => {
+    modalLayout.setAttribute("class", "modal-layout");
+    const title = createElement("h1", "title", "Send To Notion");
+    const wrapperSelectedText = createWrapper();
+    const wrapperTranslateText = createWrapper();
+    const wrapperSuggestionText = createWrapper();
+    const wrapperLoginButton = createWrapper("content-login-button");
+    const titleSelectedText = createElement(
+      "div",
+      "content-title",
+      "Selected Text"
+    );
+    const titleTranslatedText = createElement(
+      "div",
+      "content-title",
+      "Translated Text"
+    );
+    const titleSuggestionText = createElement(
+      "div",
+      "content-title",
+      "Suggestion Text"
+    );
+
+    const contentSelectedText = createElement(
+      "p",
+      "content-selected-text",
+      request.message.text
+    );
+    const contentTranslatedText = createElement(
+      "p",
+      "content-translated-text",
+      "Content Translated"
+    );
+    const contentSuggestionText = createElement(
+      "p",
+      "content-suggestion-text",
+      "Contend Suggestion"
+    );
+    const textButton = request.message.login
+      ? "Save to notion"
+      : "Login with notion";
+
+    const loginButton = createElement("button", "login-button", textButton);
+    const logoutButton = createElement("button", "logout-button", "Logout");
+
+    const style = createStyle();
+
+    shadow.appendChild(style);
+    shadow.appendChild(modalLayout);
+    body.insertAdjacentElement("afterbegin", root);
+    modalLayout.appendChild(title);
+    wrapperSelectedText.appendChild(titleSelectedText);
+    wrapperSelectedText.appendChild(contentSelectedText);
+    wrapperTranslateText.appendChild(titleTranslatedText);
+    wrapperTranslateText.appendChild(contentTranslatedText);
+    wrapperSuggestionText.appendChild(titleSuggestionText);
+    wrapperSuggestionText.appendChild(contentSuggestionText);
+    wrapperLoginButton.appendChild(loginButton);
+    modalLayout.appendChild(wrapperSelectedText);
+    modalLayout.appendChild(wrapperTranslateText);
+    modalLayout.appendChild(wrapperSuggestionText);
+    modalLayout.appendChild(wrapperLoginButton);
+    const rootNode = document.querySelector(".root");
+    const nodes = rootNode && root.shadowRoot;
+    const loginButtonNode = nodes.querySelector(".login-button");
+    console.log(loginButtonNode);
+
+    // if (request.message.login) {
+    //   logoutButton.style = "opacity: 1";
+    // } else {
+    //   logoutButton.style = "opacity: 0";
+    // }
+    // body.insertAdjacentElement("afterbegin", modalLayout);
+    // console.log(request.message);
+    loginButtonNode.addEventListener("click", (e) => {
       // document.body.removeChild(modalLayout);
-      sendMessage(request.message);
+      // sendMessage(request.message);
+      console.log(e);
     });
+    // logoutButton.addEventListener("click", async (e) => {
+    //   console.log(e);
+    //   console.log(request.message);
+    //   // await chrome.storage.local.remove("authToken");
+    //   sendMessage({ logout: true });
+    // });
   }
 });
 
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  const authTokenStorage = await chrome.storage.local.get("authToken");
-  console.log(authTokenStorage);
   const button = document.querySelector("#buton-extension");
   if (button && request.message.login) {
     button.innerText = "Save to notion";
@@ -81,6 +105,58 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     // });
   }
 });
+
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+  const button = document.querySelector("#buton-extension");
+  if (button && !request.message.login) {
+    button.innerText = "Login with notion";
+    // button.addEventListener("click", () => {
+    //   // document.body.removeChild(modalLayout);
+    //   sendMessage(request.message);
+    // });
+  }
+});
+
+function createElement(element, className, content = "Hello World") {
+  const ele = document.createElement(element);
+  ele.setAttribute("class", className);
+  ele.innerText = content;
+  return ele;
+}
+
+function createWrapper(classPlus = "") {
+  const wrapper = document.createElement("div");
+  wrapper.setAttribute("class", `wrapper ${classPlus}`);
+  return wrapper;
+}
+
+function createStyle() {
+  const style = document.createElement("style");
+  style.textContent = `
+  .modal-layout {
+    border-radius: 16px;
+    background: blue;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 1rem;
+    width: 100%;
+    max-width: 768px;
+    z-index: 1000;
+  }
+  .wrapper {
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 0.5rem;
+  }
+  .wrapper.content-login-button {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  `;
+  return style;
+}
 
 function sendMessage(message) {
   chrome.runtime.sendMessage(message);

@@ -13,16 +13,16 @@ chrome.runtime.onInstalled.addListener((details) => {
     textInfo = info.selectionText;
     // await chrome.storage.local.remove("authToken");
 
-    const authTokenStorage = await chrome.storage.local.get("authToken");
-    if (Object.keys(authTokenStorage).length > 0) {
+    const { authToken } = await chrome.storage.local.get("authToken");
+    if (authToken) {
       isLogin = true;
-      console.log("authTokenStorage", authTokenStorage);
-      // createPage(authTokenStorage.authToken, info.selectionText);
+      console.log("authTokenStorage", authToken);
     }
 
     (async function getCurrentTab() {
       let queryOptions = { active: true, lastFocusedWindow: true };
       let [tab] = await chrome.tabs.query(queryOptions);
+      console.log(tab);
       await chrome.scripting.insertCSS({
         files: ["styles.css"],
         target: { tabId: tab.id },
@@ -31,7 +31,7 @@ chrome.runtime.onInstalled.addListener((details) => {
         type: "openModal",
         message: {
           text: textInfo,
-          login: isLogin ? true : false,
+          login: isLogin,
         },
       });
     })();
@@ -68,6 +68,7 @@ async function handleAuthenticationResponse(redirectUri) {
 }
 
 async function createPage(token, text) {
+  const pageId = await getPage(token);
   const postPage = await fetch("http://localhost:5400/v1/post", {
     method: "POST",
     headers: {
@@ -75,41 +76,50 @@ async function createPage(token, text) {
       "Notion-Version": "2022-06-28",
       "content-type": "application/json",
     },
-    body: JSON.stringify({ token: token, data: text }),
+    body: JSON.stringify({
+      token: token,
+      data: text,
+      pageId: pageId.results[0].id,
+    }),
   });
 
   const resultPostPage = await postPage.json();
   console.log(resultPostPage);
 }
 
+async function getPage(token) {
+  const options = {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "Notion-Version": "2022-06-28",
+      "content-type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ page_size: 100 }),
+  };
+  try {
+    const response = await fetch("https://api.notion.com/v1/search", options);
+    return response.json();
+  } catch (error) {
+    console.log(error);
+  }
+}
+
 // Función para iniciar el flujo de autenticación
 function startAuthenticationFlow() {
-  // URI de redirección registrado en tu integración de Notion
-  const redirectUri =
-    "https://fpljefipnkiphonnhgpakgnapobpljhc.chromiumapp.org/";
-
-  // URI de autorización proporcionado por Notion
-  const authorizationUrl =
-    "https://api.notion.com/v1/oauth/authorize?client_id=6fe491a5-3b72-49a2-b321-66db7eb26c21&response_type=code";
-
-  // Parámetros necesarios para la solicitud de autorización
   const clientId = "6fe491a5-3b72-49a2-b321-66db7eb26c21";
-  const state = "estado-aleatorio-generado-por-tu-extension"; // Estado opcional para protección CSRF
-
-  // Construir la URL de autorización con los parámetros necesarios
-  const authUrl = `https://api.notion.com/v1/oauth/authorize?client_id=6fe491a5-3b72-49a2-b321-66db7eb26c21&response_type=code`;
+  const authUrl = `https://api.notion.com/v1/oauth/authorize?client_id=${clientId}&response_type=code`;
 
   // Lanzar la ventana emergente de autenticación usando launchWebAuthFlow
   chrome.identity.launchWebAuthFlow(
     { url: authUrl, interactive: true },
     function (redirectUrl) {
-      // console.log(redirectUrl);
       // La ventana emergente de autenticación se cerrará y se llamará a esta función de devolución de llamada
       if (chrome.runtime.lastError) {
         console.error(chrome.runtime.lastError);
         return;
       }
-
       // Manejar la respuesta de autenticación
       handleAuthenticationResponse(redirectUrl);
     }
@@ -117,6 +127,21 @@ function startAuthenticationFlow() {
 }
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   const authTokenStorage = await chrome.storage.local.get("authToken");
+  if (request.logout) {
+    console.log("logout", request);
+    let queryOptions = { active: true, lastFocusedWindow: true };
+    let [tab] = await chrome.tabs.query(queryOptions);
+    console.log(tab);
+    await chrome.tabs.sendMessage(tab.id, {
+      type: "logout",
+      message: {
+        text: textInfo,
+        login: false,
+      },
+    });
+    await chrome.storage.local.remove("authToken");
+    return;
+  }
   if (!request.login) {
     console.log("login", request);
     startAuthenticationFlow();
