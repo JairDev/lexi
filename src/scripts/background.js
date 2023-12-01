@@ -8,11 +8,13 @@ chrome.runtime.onInstalled.addListener((details) => {
     contexts: ["selection"],
   });
   let isLogin = false;
-  chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  chrome.contextMenus.onClicked.addListener(async (info) => {
     console.log(info.selectionText);
     textInfo = info.selectionText;
     // await chrome.storage.local.remove("authToken");
 
+    // const textGeneration = await getSugestion(textInfo);
+    // console.log("textGeneration", textGeneration);
     const { authToken } = await chrome.storage.local.get("authToken");
     if (authToken) {
       isLogin = true;
@@ -23,14 +25,15 @@ chrome.runtime.onInstalled.addListener((details) => {
       let queryOptions = { active: true, lastFocusedWindow: true };
       let [tab] = await chrome.tabs.query(queryOptions);
       console.log(tab);
-      await chrome.scripting.insertCSS({
-        files: ["styles.css"],
-        target: { tabId: tab.id },
-      });
+      // await chrome.scripting.insertCSS({
+      //   files: ["styles.css"],
+      //   target: { tabId: tab.id },
+      // });
       await chrome.tabs.sendMessage(tab.id, {
         type: "openModal",
         message: {
           text: textInfo,
+          // textGeneration: textGeneration.message,
           login: isLogin,
         },
       });
@@ -85,6 +88,24 @@ async function createPage(token, text) {
 
   const resultPostPage = await postPage.json();
   console.log(resultPostPage);
+}
+
+async function getSugestion(text) {
+  console.log(text);
+  try {
+    const response = await fetch("http://localhost:5400/v1/suggestion", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ data: text }),
+    });
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 async function getPage(token) {
