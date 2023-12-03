@@ -11,10 +11,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     const modalLayout = document.createElement("div");
     modalLayout.setAttribute("class", "modal-layout");
     const title = createElement("h1", "title", "Send To Notion");
+    const wrapperHeader = createWrapper("content-header");
+    const wrapperMenu = createWrapper("content-menu");
+    const wrapperContentMenu = createWrapper("content-content-menu");
     const wrapperSelectedText = createWrapper();
     const wrapperTranslateText = createWrapper();
-    const wrapperSuggestionText = createWrapper();
+    const wrapperSuggestionText = createWrapper("content-suggestion-text");
     const wrapperLoginButton = createWrapper("content-login-button");
+    const menu = document.createElement("div");
+    menu.textContent = "Menu";
     const titleSelectedText = createElement(
       "div",
       "content-title",
@@ -43,8 +48,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     );
     const contentSuggestionText = createElement(
       "p",
-      "content-suggestion-text",
-      request.message?.textGeneration
+      "content-suggestion-text-p",
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry"
     );
     const textButton = request.message.login
       ? "Save to notion"
@@ -52,6 +57,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
     const loginButton = createElement("button", "login-button", textButton);
     const logoutButton = createElement("button", "logout-button", "Logout");
+    const generatedButton = createElement(
+      "button",
+      "generated-button",
+      "Gegerate sentence"
+    );
     const span = createElement(
       "span",
       "span-warn",
@@ -63,13 +73,19 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     shadow.appendChild(style);
     shadow.appendChild(modalLayout);
     body.insertAdjacentElement("afterbegin", root);
-    modalLayout.appendChild(title);
+    modalLayout.appendChild(wrapperHeader);
+    wrapperHeader.appendChild(title);
+    wrapperMenu.appendChild(menu);
+    wrapperHeader.appendChild(wrapperMenu);
+    wrapperContentMenu.appendChild(logoutButton);
+    wrapperMenu.appendChild(wrapperContentMenu);
     wrapperSelectedText.appendChild(titleSelectedText);
     wrapperSelectedText.appendChild(contentSelectedText);
     wrapperTranslateText.appendChild(titleTranslatedText);
     wrapperTranslateText.appendChild(contentTranslatedText);
     wrapperSuggestionText.appendChild(titleSuggestionText);
     wrapperSuggestionText.appendChild(contentSuggestionText);
+    wrapperSuggestionText.appendChild(generatedButton);
     wrapperLoginButton.appendChild(loginButton);
     wrapperLoginButton.insertAdjacentElement("afterbegin", span);
     modalLayout.appendChild(wrapperSelectedText);
@@ -79,7 +95,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     const rootNode = document.querySelector(".root");
     const nodes = rootNode && root.shadowRoot;
     const loginButtonNode = nodes.querySelector(".login-button");
-    console.log(loginButtonNode);
+    const generatedButtonNode = nodes.querySelector(".generated-button");
+    const suggestionText = nodes.querySelector(".content-suggestion-text-p");
+    // console.log(loginButtonNode);
 
     // if (request.message.login) {
     //   logoutButton.style = "opacity: 1";
@@ -89,40 +107,64 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     // body.insertAdjacentElement("afterbegin", modalLayout);
     // console.log(request.message);
     loginButtonNode.addEventListener("click", (e) => {
-      // document.body.removeChild(modalLayout);
-      // sendMessage(request.message);
-      console.log(e);
+      sendMessage({ type: "auth", ...request.message });
+      console.log({ type: "auth", ...request.message });
     });
-    // logoutButton.addEventListener("click", async (e) => {
-    //   console.log(e);
-    //   console.log(request.message);
-    //   // await chrome.storage.local.remove("authToken");
-    //   sendMessage({ logout: true });
-    // });
+
+    logoutButton.addEventListener("click", async (e) => {
+      console.log(e);
+      console.log(request.message);
+      loginButtonNode.textContent = "Login with notion";
+      sendMessage({ type: "logout", login: false });
+    });
+
+    generatedButtonNode.addEventListener("click", async (e) => {
+      console.log(e);
+      generatedButtonNode.style = "display: none;";
+      suggestionText.style = "filter: none";
+      suggestionText.textContent = "Loading";
+      await chrome.runtime.sendMessage({
+        type: "suggestion",
+        text: request.message?.text,
+      });
+    });
   }
 });
 
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  const button = document.querySelector("#buton-extension");
-  if (button && request.message.login) {
-    button.innerText = "Save to notion";
-    // button.addEventListener("click", () => {
-    //   // document.body.removeChild(modalLayout);
-    //   sendMessage(request.message);
-    // });
+  const rootNode = document.querySelector(".root");
+  const nodes = rootNode.shadowRoot;
+  const suggestionText = nodes.querySelector(".content-suggestion-text-p");
+  const generatedButton = nodes.querySelector(".generated-button");
+  const loginButton = nodes.querySelector(".login-button");
+  if (request.type === "suggestion") {
+    const message = await request.message;
+    console.log(suggestionText);
+    console.log(message);
+
+    suggestionText.innerText = message.data;
+  }
+  if (request.type === "login") {
+    console.log("login", request);
+    loginButton.innerText = "Save to notion";
+  }
+
+  if (request.type === "logout") {
+    console.log("logout", request);
+    loginButton.innerText = "Login with notion";
   }
 });
 
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  const button = document.querySelector("#buton-extension");
-  if (button && !request.message.login) {
-    button.innerText = "Login with notion";
-    // button.addEventListener("click", () => {
-    //   // document.body.removeChild(modalLayout);
-    //   sendMessage(request.message);
-    // });
-  }
-});
+// chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+//   const button = document.querySelector("#buton-extension");
+//   if (button && !request.message.login) {
+//     button.innerText = "Login with notion";
+//     // button.addEventListener("click", () => {
+//     //   // document.body.removeChild(modalLayout);
+//     //   sendMessage(request.message);
+//     // });
+//   }
+// });
 
 function createElement(element, className, content = "Hello World") {
   const ele = document.createElement(element);
@@ -163,16 +205,31 @@ function createStyle() {
   }
   .title {
     margin: 0;
-    margin-bottom: 1rem
   }
   .content-title {
-    font-weight: 500;
+    font-weight: 600;
     margin-bottom: .25rem;
   }
   .wrapper {
     border-bottom: 1px solid #ccc;
     color: rgba(25, 23, 17, 0.6);
     margin-bottom: 1rem;
+    position: relative;
+  }
+  .wrapper.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 100;
+  }
+
+  .wrapper.content-content-menu {
+    background: rgb(251, 251, 250);
+    position: absolute;
+    right: 0;
+    top: 30px;
+    padding: 1rem 0rem 1rem 1rem;
   }
   .wrapper:nth-child(4) {
     margin-bottom: 0;
@@ -180,6 +237,28 @@ function createStyle() {
   .wrapper:last-child {
     border-bottom: none;
     margin-bottom: 0;
+  }
+  .wrapper.content-suggestion-text {
+    min-height: 120px;
+  }
+
+  .content-suggestion-text-p {
+    filter: blur(5px)
+  }
+
+  .generated-button {
+    background: none;
+    border: 2px solid rgb(18, 18, 18);
+    border-radius: 4px;
+    cursor: pointer;
+    color: rgb(18, 18, 18);
+    font-size: 1rem;
+    padding: .25rem .875rem;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
   }
   .wrapper.content-login-button {
     display: flex;
@@ -201,6 +280,13 @@ function createStyle() {
     font-size: 1rem;
     padding: .25rem .875rem;
     margin-top: 1rem;
+  }
+
+  .logout-button {
+    background: none;
+    border: none;
+    color: rgb(18, 18, 18);
+    cursor: pointer;
   }
 
   `;

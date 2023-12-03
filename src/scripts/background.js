@@ -11,12 +11,10 @@ chrome.runtime.onInstalled.addListener((details) => {
   chrome.contextMenus.onClicked.addListener(async (info) => {
     console.log(info.selectionText);
     textInfo = info.selectionText;
-    // await chrome.storage.local.remove("authToken");
 
-    // const textGeneration = await getSugestion(textInfo);
-    // console.log("textGeneration", textGeneration);
     const { authToken } = await chrome.storage.local.get("authToken");
     if (authToken) {
+      console.log("authTokenStorage", authToken);
       isLogin = true;
       console.log("authTokenStorage", authToken);
     }
@@ -33,7 +31,6 @@ chrome.runtime.onInstalled.addListener((details) => {
         type: "openModal",
         message: {
           text: textInfo,
-          // textGeneration: textGeneration.message,
           login: isLogin,
         },
       });
@@ -57,17 +54,20 @@ async function handleAuthenticationResponse(redirectUri) {
   });
   const result = await response.json();
   console.log(result);
-  await chrome.storage.local.set({ authToken: result?.data?.access_token });
+  console.log(response.status);
   let queryOptions = { active: true, lastFocusedWindow: true };
   let [tab] = await chrome.tabs.query(queryOptions);
   console.log(tab);
-  await chrome.tabs.sendMessage(tab.id, {
-    type: "login",
-    message: {
-      text: textInfo,
-      login: true,
-    },
-  });
+  if (response.status !== 400) {
+    await chrome.storage.local.set({ authToken: result?.data?.access_token });
+    await chrome.tabs.sendMessage(tab.id, {
+      type: "login",
+      message: {
+        text: textInfo,
+        login: true,
+      },
+    });
+  }
 }
 
 async function createPage(token, text) {
@@ -148,11 +148,22 @@ function startAuthenticationFlow() {
 }
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   const authTokenStorage = await chrome.storage.local.get("authToken");
-  if (request.logout) {
+  console.log(request);
+  let queryOptions = { active: true, lastFocusedWindow: true };
+  let [tab] = await chrome.tabs.query(queryOptions);
+
+  if (request.type === "auth") {
+    if (!request.login) {
+      console.log("login", request);
+      startAuthenticationFlow();
+    } else {
+      console.log("isLogged", request);
+      createPage(authTokenStorage.authToken, request.text);
+    }
+  }
+
+  if (request.type === "logout") {
     console.log("logout", request);
-    let queryOptions = { active: true, lastFocusedWindow: true };
-    let [tab] = await chrome.tabs.query(queryOptions);
-    console.log(tab);
     await chrome.tabs.sendMessage(tab.id, {
       type: "logout",
       message: {
@@ -163,11 +174,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     await chrome.storage.local.remove("authToken");
     return;
   }
-  if (!request.login) {
-    console.log("login", request);
-    startAuthenticationFlow();
-  } else {
-    console.log("isLogged", request);
-    createPage(authTokenStorage.authToken, request.text);
+  if (request.type === "suggestion") {
+    console.log("suggestion");
+    const textGeneration = await getSugestion(request.text);
+    console.log("textGeneration", textGeneration);
+    console.log("???", request);
+    await chrome.tabs.sendMessage(tab.id, {
+      type: "suggestion",
+      message: {
+        data: textGeneration?.message,
+      },
+    });
   }
 });
