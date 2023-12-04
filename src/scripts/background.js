@@ -11,18 +11,18 @@ chrome.runtime.onInstalled.addListener((details) => {
   chrome.contextMenus.onClicked.addListener(async (info) => {
     console.log(info.selectionText);
     textInfo = info.selectionText;
-
+    console.log(isLogin);
     const { authToken } = await chrome.storage.local.get("authToken");
     if (authToken) {
-      console.log("authTokenStorage", authToken);
       isLogin = true;
       console.log("authTokenStorage", authToken);
     }
-
     (async function getCurrentTab() {
       let queryOptions = { active: true, lastFocusedWindow: true };
       let [tab] = await chrome.tabs.query(queryOptions);
       console.log(tab);
+      // const translatedText = await getTranslated(textInfo);
+      // console.log(translatedText);
       // await chrome.scripting.insertCSS({
       //   files: ["styles.css"],
       //   target: { tabId: tab.id },
@@ -31,7 +31,7 @@ chrome.runtime.onInstalled.addListener((details) => {
         type: "openModal",
         message: {
           text: textInfo,
-          login: isLogin,
+          login: authToken ? true : false,
         },
       });
     })();
@@ -59,6 +59,7 @@ async function handleAuthenticationResponse(redirectUri) {
   let [tab] = await chrome.tabs.query(queryOptions);
   console.log(tab);
   if (response.status !== 400) {
+    console.log("is loginnnnnn");
     await chrome.storage.local.set({ authToken: result?.data?.access_token });
     await chrome.tabs.sendMessage(tab.id, {
       type: "login",
@@ -70,8 +71,28 @@ async function handleAuthenticationResponse(redirectUri) {
   }
 }
 
-async function createPage(token, text) {
+async function getTranslated(text) {
+  console.log(text);
+  try {
+    const response = await fetch("http://localhost:5400/v1/translated", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ data: text }),
+    });
+    const result = await response.json();
+    console.log(result);
+    return result;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+async function createPage(token, text, suggestionText) {
   const pageId = await getPage(token);
+  console.log(text);
   const postPage = await fetch("http://localhost:5400/v1/post", {
     method: "POST",
     headers: {
@@ -83,6 +104,7 @@ async function createPage(token, text) {
       token: token,
       data: text,
       pageId: pageId.results[0].id,
+      suggestionText: suggestionText,
     }),
   });
 
@@ -148,17 +170,22 @@ function startAuthenticationFlow() {
 }
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   const authTokenStorage = await chrome.storage.local.get("authToken");
-  console.log(request);
   let queryOptions = { active: true, lastFocusedWindow: true };
   let [tab] = await chrome.tabs.query(queryOptions);
+  // console.log(request);
 
   if (request.type === "auth") {
     if (!request.login) {
       console.log("login", request);
       startAuthenticationFlow();
     } else {
-      console.log("isLogged", request);
-      createPage(authTokenStorage.authToken, request.text);
+      const textGeneration = await getSugestion(request.text);
+      console.log("isLogged", request, textGeneration);
+      createPage(
+        authTokenStorage.authToken,
+        request.text,
+        textGeneration.message
+      );
     }
   }
 
@@ -172,7 +199,17 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       },
     });
     await chrome.storage.local.remove("authToken");
-    return;
+  }
+  if (request.type === "translated") {
+    console.log("translated", request);
+    const textTranslated = await getTranslated(request.text);
+    console.log("translated", textTranslated);
+    await chrome.tabs.sendMessage(tab.id, {
+      type: "translated",
+      message: {
+        data: textTranslated.message,
+      },
+    });
   }
   if (request.type === "suggestion") {
     console.log("suggestion");

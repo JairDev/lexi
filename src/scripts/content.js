@@ -10,7 +10,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     const shadow = root.attachShadow({ mode: "open" });
     const modalLayout = document.createElement("div");
     modalLayout.setAttribute("class", "modal-layout");
-    const title = createElement("h1", "title", "Send To Notion");
+    const title = createElement("h1", "title", "Lexi");
     const wrapperHeader = createWrapper("content-header");
     const wrapperMenu = createWrapper("content-menu");
     const wrapperContentMenu = createWrapper("content-content-menu");
@@ -18,8 +18,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     const wrapperTranslateText = createWrapper();
     const wrapperSuggestionText = createWrapper("content-suggestion-text");
     const wrapperLoginButton = createWrapper("content-login-button");
-    const menu = document.createElement("div");
-    menu.textContent = "Menu";
+    const menu = createElement("div", "menu-button", "Menu");
     const titleSelectedText = createElement(
       "div",
       "content-title",
@@ -97,6 +96,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     const loginButtonNode = nodes.querySelector(".login-button");
     const generatedButtonNode = nodes.querySelector(".generated-button");
     const suggestionText = nodes.querySelector(".content-suggestion-text-p");
+    const translatedText = nodes.querySelector(".content-translated-text");
+    const wrapperActionsMenu = nodes.querySelector(
+      ".wrapper.content-content-menu"
+    );
+    translatedText.innerText = "Loading";
     // console.log(loginButtonNode);
 
     // if (request.message.login) {
@@ -106,9 +110,26 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     // }
     // body.insertAdjacentElement("afterbegin", modalLayout);
     // console.log(request.message);
-    loginButtonNode.addEventListener("click", (e) => {
-      sendMessage({ type: "auth", ...request.message });
-      console.log({ type: "auth", ...request.message });
+    console.log(request.message);
+
+    loginButtonNode.addEventListener("click", async (e) => {
+      const { authToken } = await chrome.storage.local.get("authToken");
+      console.log(authToken);
+      if (authToken) {
+        sendMessage({ type: "auth", login: true, text: request.message.text });
+        console.log({
+          type: "auth",
+          ...request.message,
+        });
+      } else {
+        sendMessage({ type: "auth", login: false });
+        console.log({ type: "auth", ...request.message });
+      }
+    });
+
+    menu.addEventListener("click", (e) => {
+      console.log(wrapperActionsMenu);
+      wrapperActionsMenu.classList.toggle("active");
     });
 
     logoutButton.addEventListener("click", async (e) => {
@@ -117,6 +138,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       loginButtonNode.textContent = "Login with notion";
       sendMessage({ type: "logout", login: false });
     });
+    await chrome.runtime.sendMessage({
+      type: "translated",
+      text: request.message?.text,
+    });
+    console.log(request.message);
 
     generatedButtonNode.addEventListener("click", async (e) => {
       console.log(e);
@@ -136,7 +162,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   const nodes = rootNode.shadowRoot;
   const suggestionText = nodes.querySelector(".content-suggestion-text-p");
   const generatedButton = nodes.querySelector(".generated-button");
+  const translatedText = nodes.querySelector(".content-translated-text");
   const loginButton = nodes.querySelector(".login-button");
+
+  if (request.type === "translated") {
+    console.log("inner", request);
+    const message = await request.message;
+
+    translatedText.innerText = message.data;
+  }
   if (request.type === "suggestion") {
     const message = await request.message;
     console.log(suggestionText);
@@ -225,11 +259,19 @@ function createStyle() {
   }
 
   .wrapper.content-content-menu {
-    background: rgb(251, 251, 250);
+    background: rgb(55, 53, 47);
+    border-radius: 4px;
     position: absolute;
     right: 0;
     top: 30px;
-    padding: 1rem 0rem 1rem 1rem;
+    padding: 1rem;
+    opacity: 0;
+  }
+  .wrapper.content-content-menu.active {
+    opacity: 1;
+  }
+  .menu-button {
+    cursor: pointer;
   }
   .wrapper:nth-child(4) {
     margin-bottom: 0;
@@ -285,7 +327,7 @@ function createStyle() {
   .logout-button {
     background: none;
     border: none;
-    color: rgb(18, 18, 18);
+    color: rgb(251, 251, 250);
     cursor: pointer;
   }
 
