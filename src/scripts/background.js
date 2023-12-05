@@ -21,8 +21,6 @@ chrome.runtime.onInstalled.addListener((details) => {
       let queryOptions = { active: true, lastFocusedWindow: true };
       let [tab] = await chrome.tabs.query(queryOptions);
       console.log(tab);
-      // const translatedText = await getTranslated(textInfo);
-      // console.log(translatedText);
       // await chrome.scripting.insertCSS({
       //   files: ["styles.css"],
       //   target: { tabId: tab.id },
@@ -42,6 +40,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 async function handleAuthenticationResponse(redirectUri) {
   const urlParams = new URL(redirectUri);
   const authCode = urlParams.searchParams.get("code");
+
   const response = await fetch("http://localhost:5400/v1/auth/login", {
     method: "POST",
     headers: {
@@ -54,18 +53,26 @@ async function handleAuthenticationResponse(redirectUri) {
   });
   const result = await response.json();
   console.log(result);
-  console.log(response.status);
+  console.log(response);
   let queryOptions = { active: true, lastFocusedWindow: true };
   let [tab] = await chrome.tabs.query(queryOptions);
-  console.log(tab);
-  if (response.status !== 400) {
-    console.log("is loginnnnnn");
+  if (response.ok) {
+    console.log(tab);
     await chrome.storage.local.set({ authToken: result?.data?.access_token });
     await chrome.tabs.sendMessage(tab.id, {
       type: "login",
       message: {
         text: textInfo,
         login: true,
+      },
+    });
+  } else {
+    await chrome.tabs.sendMessage(tab.id, {
+      type: "login",
+      message: {
+        text: textInfo,
+        login: false,
+        error: result.data.error,
       },
     });
   }
@@ -156,11 +163,12 @@ function startAuthenticationFlow() {
   const authUrl = `https://api.notion.com/v1/oauth/authorize?client_id=${clientId}&response_type=code`;
 
   // Lanzar la ventana emergente de autenticación usando launchWebAuthFlow
-  chrome.identity.launchWebAuthFlow(
+  return chrome.identity.launchWebAuthFlow(
     { url: authUrl, interactive: true },
     function (redirectUrl) {
       // La ventana emergente de autenticación se cerrará y se llamará a esta función de devolución de llamada
       if (chrome.runtime.lastError) {
+        console.log("errorrr");
         console.error(chrome.runtime.lastError);
         return;
       }
@@ -169,6 +177,7 @@ function startAuthenticationFlow() {
     }
   );
 }
+
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   const authTokenStorage = await chrome.storage.local.get("authToken");
   let queryOptions = { active: true, lastFocusedWindow: true };
