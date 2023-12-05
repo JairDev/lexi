@@ -1,9 +1,5 @@
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (request) => {
   if (request.type === "openModal") {
-    // const translate = getTranslate();
-    // // console.log(translate);
-    // // console.log(sendResponse);
-    // const dataGeneration = await getSugestion(request.message.text);
     const body = document.querySelector("body");
     const root = document.createElement("div");
     root.setAttribute("class", "root");
@@ -101,18 +97,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       ".wrapper.content-content-menu"
     );
     translatedText.innerText = "Loading";
-    // console.log(loginButtonNode);
 
-    // if (request.message.login) {
-    //   logoutButton.style = "opacity: 1";
-    // } else {
-    //   logoutButton.style = "opacity: 0";
-    // }
-    // body.insertAdjacentElement("afterbegin", modalLayout);
-    // console.log(request.message);
-    console.log(request.message);
-
-    loginButtonNode.addEventListener("click", async (e) => {
+    loginButtonNode.addEventListener("click", async () => {
       const { authToken } = await chrome.storage.local.get("authToken");
       console.log(authToken);
       if (authToken) {
@@ -127,7 +113,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       }
     });
 
-    menu.addEventListener("click", (e) => {
+    menu.addEventListener("click", () => {
       console.log(wrapperActionsMenu);
       wrapperActionsMenu.classList.toggle("active");
     });
@@ -157,7 +143,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   }
 });
 
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (request) => {
   const rootNode = document.querySelector(".root");
   const nodes = rootNode.shadowRoot;
   const suggestionText = nodes.querySelector(".content-suggestion-text-p");
@@ -189,17 +175,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   }
 });
 
-// chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-//   const button = document.querySelector("#buton-extension");
-//   if (button && !request.message.login) {
-//     button.innerText = "Login with notion";
-//     // button.addEventListener("click", () => {
-//     //   // document.body.removeChild(modalLayout);
-//     //   sendMessage(request.message);
-//     // });
-//   }
-// });
-
 function createElement(element, className, content = "Hello World") {
   const ele = document.createElement(element);
   ele.setAttribute("class", className);
@@ -211,6 +186,10 @@ function createWrapper(classPlus = "") {
   const wrapper = document.createElement("div");
   wrapper.setAttribute("class", `wrapper ${classPlus}`);
   return wrapper;
+}
+
+function sendMessage(message) {
+  chrome.runtime.sendMessage(message);
 }
 
 function createStyle() {
@@ -333,34 +312,4 @@ function createStyle() {
 
   `;
   return style;
-}
-
-function sendMessage(message) {
-  chrome.runtime.sendMessage(message);
-}
-
-function getTranslate() {
-  return "Test translate";
-}
-
-// async function getSugestion(text) {
-//   console.log(text);
-//   try {
-//     const response = await fetch("http://localhost:5400/v1/suggestion", {
-//       method: "POST",
-//       headers: {
-//         accept: "application/json",
-//         "content-type": "application/json",
-//       },
-//       body: JSON.stringify({ data: text }),
-//     });
-//     const result = await response.json();
-//     console.log(result);
-//   } catch (error) {
-//     console.log(error);
-//   }
-// }
-
-function saveToNotion() {
-  return "Saved to notion";
 }

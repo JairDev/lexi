@@ -90,7 +90,7 @@ async function getTranslated(text) {
   }
 }
 
-async function createPage(token, text, suggestionText) {
+async function createPage(token, text, suggestionText, translatedText) {
   const pageId = await getPage(token);
   console.log(text);
   const postPage = await fetch("http://localhost:5400/v1/post", {
@@ -102,9 +102,10 @@ async function createPage(token, text, suggestionText) {
     },
     body: JSON.stringify({
       token: token,
-      data: text,
+      selectedText: text,
       pageId: pageId.results[0].id,
-      suggestionText: suggestionText,
+      suggestionText,
+      translatedText,
     }),
   });
 
@@ -179,12 +180,14 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       console.log("login", request);
       startAuthenticationFlow();
     } else {
+      const translatedText = await getTranslated(request.text);
       const textGeneration = await getSugestion(request.text);
       console.log("isLogged", request, textGeneration);
       createPage(
         authTokenStorage.authToken,
         request.text,
-        textGeneration.message
+        textGeneration.message,
+        translatedText.message
       );
     }
   }
