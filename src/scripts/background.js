@@ -97,7 +97,7 @@ async function getTranslated(text) {
   }
 }
 
-async function createPage(token, text, suggestionText, translatedText) {
+async function createPage(token, text, translatedText, suggestionText = "") {
   const pageId = await getPage(token);
   console.log(text);
   const postPage = await fetch("http://localhost:5400/v1/post", {
@@ -118,6 +118,14 @@ async function createPage(token, text, suggestionText, translatedText) {
 
   const resultPostPage = await postPage.json();
   console.log(resultPostPage);
+  let queryOptions = { active: true, lastFocusedWindow: true };
+  let [tab] = await chrome.tabs.query(queryOptions);
+  await chrome.tabs.sendMessage(tab.id, {
+    type: "createPage",
+    message: {
+      create: resultPostPage.message,
+    },
+  });
 }
 
 async function getSugestion(text) {
@@ -178,12 +186,20 @@ function startAuthenticationFlow() {
   );
 }
 
+function checkIsSuggestion(suggestion = false) {
+  let isSuggestion = suggestion;
+  return function () {
+    return isSuggestion;
+  };
+}
+let isSuggestion = false;
+
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   const authTokenStorage = await chrome.storage.local.get("authToken");
   let queryOptions = { active: true, lastFocusedWindow: true };
   let [tab] = await chrome.tabs.query(queryOptions);
   // console.log(request);
-
+  // let isSuggestion = false;
   if (request.type === "auth") {
     if (!request.login) {
       console.log("login", request);
@@ -192,12 +208,22 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       const translatedText = await getTranslated(request.text);
       const textGeneration = await getSugestion(request.text);
       console.log("isLogged", request, textGeneration);
-      createPage(
-        authTokenStorage.authToken,
-        request.text,
-        textGeneration.message,
-        translatedText.message
-      );
+      console.log("isSuggestion", isSuggestion);
+      if (isSuggestion) {
+        createPage(
+          authTokenStorage.authToken,
+          request.text,
+          translatedText.message,
+          textGeneration.message
+        );
+      } else {
+        createPage(
+          authTokenStorage.authToken,
+          request.text,
+          translatedText.message,
+          "You do not generate any suggestions"
+        );
+      }
     }
   }
 
@@ -224,10 +250,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     });
   }
   if (request.type === "suggestion") {
-    console.log("suggestion");
+    isSuggestion = true;
     const textGeneration = await getSugestion(request.text);
     console.log("textGeneration", textGeneration);
-    console.log("???", request);
     await chrome.tabs.sendMessage(tab.id, {
       type: "suggestion",
       message: {

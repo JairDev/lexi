@@ -119,6 +119,11 @@ chrome.runtime.onMessage.addListener(async (request) => {
       ".wrapper.content-content-menu"
     );
 
+    // if (request.type === "openModal" && request.message.login) {
+    //   console.log("is login", request.message);
+    //   loginButtonNode.textContent = "Save to notion";
+    // }
+
     loginButtonNode.addEventListener("click", async () => {
       loginButtonNode.textContent = "Loading...";
       startLogin(request);
@@ -136,6 +141,7 @@ chrome.runtime.onMessage.addListener(async (request) => {
       type: "translated",
       text: request.message?.text,
     });
+    console.log(request);
 
     generatedButtonNode.addEventListener("click", async () => {
       generatedButtonNode.style = "display: none;";
@@ -167,7 +173,7 @@ chrome.runtime.onMessage.addListener(async (request) => {
   const loginButton = nodes.querySelector(".login-button");
   const loader = nodes.querySelector(".loader");
   const loaderSuggestionText = nodes.querySelector(".loader-suggestion-text");
-
+  console.log(request.type);
   if (request.type === "translated") {
     const message = await request.message;
     loader.style = "display: none";
@@ -180,12 +186,16 @@ chrome.runtime.onMessage.addListener(async (request) => {
   }
   if (request.type === "login" && request.message.login) {
     loginButton.innerText = "Save to notion";
-  } else {
+  }
+  if (request.type === "login" && !request.message.login) {
     loginButton.innerText = "Login with notion";
   }
-
   if (request.type === "logout") {
     loginButton.innerText = "Login with notion";
+  }
+  if (request.type === "createPage") {
+    console.log("Page created");
+    loginButton.innerText = "Save to notion";
   }
 });
 
