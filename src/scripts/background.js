@@ -90,7 +90,7 @@ async function getTranslated(text) {
       body: JSON.stringify({ data: text }),
     });
     const result = await response.json();
-    console.log(result);
+    // console.log(result);
     return result;
   } catch (error) {
     console.log(error);
@@ -99,7 +99,7 @@ async function getTranslated(text) {
 
 async function createPage(token, text, translatedText, suggestionText = "") {
   const pageId = await getPage(token);
-  console.log(text);
+  // console.log(text);
   const postPage = await fetch("http://localhost:5400/v1/post", {
     method: "POST",
     headers: {
@@ -120,12 +120,20 @@ async function createPage(token, text, translatedText, suggestionText = "") {
   console.log(resultPostPage);
   let queryOptions = { active: true, lastFocusedWindow: true };
   let [tab] = await chrome.tabs.query(queryOptions);
-  await chrome.tabs.sendMessage(tab.id, {
-    type: "createPage",
-    message: {
-      create: resultPostPage.message,
-    },
-  });
+  if (resultPostPage.message === "success!") {
+    console.log(tab);
+
+    await chrome.tabs.sendMessage(tab.id, {
+      type: "createPage",
+      message: {
+        create: resultPostPage.message,
+      },
+    });
+  }
+  // await chrome.runtime.sendMessage({
+  //   type: "createPage",
+  //   create: resultPostPage.message,
+  // });
 }
 
 async function getSugestion(text) {
@@ -198,46 +206,24 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   const authTokenStorage = await chrome.storage.local.get("authToken");
   let queryOptions = { active: true, lastFocusedWindow: true };
   let [tab] = await chrome.tabs.query(queryOptions);
-  // console.log(request);
-  // let isSuggestion = false;
+
   if (request.type === "auth") {
     if (!request.login) {
       console.log("login", request);
       startAuthenticationFlow();
     } else {
-      const translatedText = await getTranslated(request.text);
-      const textGeneration = await getSugestion(request.text);
-      console.log("isLogged", request, textGeneration);
-      console.log("isSuggestion", isSuggestion);
-      if (isSuggestion) {
-        createPage(
-          authTokenStorage.authToken,
-          request.text,
-          translatedText.message,
-          textGeneration.message
-        );
-      } else {
-        createPage(
-          authTokenStorage.authToken,
-          request.text,
-          translatedText.message,
-          "You do not generate any suggestions"
-        );
-      }
+      console.log("logout", request);
+      await chrome.tabs.sendMessage(tab.id, {
+        type: "logout",
+        message: {
+          text: textInfo,
+          login: false,
+        },
+      });
+      await chrome.storage.local.remove("authToken");
     }
   }
 
-  if (request.type === "logout") {
-    console.log("logout", request);
-    await chrome.tabs.sendMessage(tab.id, {
-      type: "logout",
-      message: {
-        text: textInfo,
-        login: false,
-      },
-    });
-    await chrome.storage.local.remove("authToken");
-  }
   if (request.type === "translated") {
     console.log("translated", request);
     const textTranslated = await getTranslated(request.text);
@@ -259,5 +245,28 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         data: textGeneration?.message,
       },
     });
+  }
+  if (request.type === "save") {
+    console.log("save", request);
+    console.log(isSuggestion);
+    const translatedText = await getTranslated(request.data);
+    if (isSuggestion) {
+      const textGeneration = await getSugestion(request.data);
+      createPage(
+        authTokenStorage.authToken,
+        request.data,
+        translatedText.message,
+        textGeneration.message
+      );
+      console.log("is suggestion");
+    } else {
+      console.log("not suggestion");
+      createPage(
+        authTokenStorage.authToken,
+        request.data,
+        translatedText.message,
+        "You do not generate any suggestions"
+      );
+    }
   }
 });

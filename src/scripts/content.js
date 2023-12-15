@@ -54,12 +54,17 @@ chrome.runtime.onMessage.addListener(async (request) => {
       "content-suggestion-text-p",
       "Lorem Ipsum is simply dummy text of the printing and typesetting industry"
     );
-    const textButton = request.message.login
-      ? "Save to notion"
-      : "Login with notion";
+    const textButton = request.message.login ? "Logout" : "Login with notion";
 
     const loginButton = createElement("button", "login-button", textButton);
-    const logoutButton = createElement("button", "logout-button", "Logout");
+    const saveButton = createElement("button", "save-button", "Save in notion");
+    if (request.message.login) {
+      saveButton.removeAttribute("disabled");
+      saveButton.style = "cursor: pointer";
+    } else {
+      saveButton.setAttribute("disabled", "");
+      console.log("up", request.message);
+    }
     const generatedButton = createElement(
       "button",
       "generated-button",
@@ -85,10 +90,10 @@ chrome.runtime.onMessage.addListener(async (request) => {
     body.insertAdjacentElement("afterbegin", root);
     modalLayout.appendChild(wrapperHeader);
     wrapperHeader.appendChild(title);
-    wrapperMenu.appendChild(menu);
+    wrapperMenu.appendChild(loginButton);
     wrapperHeader.appendChild(wrapperMenu);
-    wrapperContentMenu.appendChild(logoutButton);
-    wrapperMenu.appendChild(wrapperContentMenu);
+    // wrapperContentMenu.appendChild(logoutButton);
+    // wrapperMenu.appendChild(wrapperContentMenu);
     wrapperSelectedText.appendChild(titleSelectedText);
     wrapperSelectedText.appendChild(contentSelectedText);
 
@@ -103,7 +108,7 @@ chrome.runtime.onMessage.addListener(async (request) => {
     wrapperContentSuggestionText.appendChild(loaderSuggestion);
     wrapperSuggestionText.appendChild(generatedButton);
 
-    wrapperLoginButton.appendChild(loginButton);
+    wrapperLoginButton.appendChild(saveButton);
     wrapperLoginButton.insertAdjacentElement("afterbegin", span);
     modalLayout.appendChild(wrapperSelectedText);
     modalLayout.appendChild(wrapperTranslateText);
@@ -112,6 +117,7 @@ chrome.runtime.onMessage.addListener(async (request) => {
     const rootNode = document.querySelector(".root");
     const nodes = rootNode && root.shadowRoot;
     const loginButtonNode = nodes.querySelector(".login-button");
+    const saveButtonNode = nodes.querySelector(".save-button");
     const generatedButtonNode = nodes.querySelector(".generated-button");
     const suggestionText = nodes.querySelector(".content-suggestion-text-p");
     const loader = nodes.querySelector(".loader-suggestion-text");
@@ -133,10 +139,10 @@ chrome.runtime.onMessage.addListener(async (request) => {
       wrapperActionsMenu.classList.toggle("active");
     });
 
-    logoutButton.addEventListener("click", async () => {
-      loginButtonNode.textContent = "Login with notion";
-      sendMessage({ type: "logout", login: false });
-    });
+    // logoutButton.addEventListener("click", async () => {
+    //   loginButtonNode.textContent = "Login with notion";
+    //   sendMessage({ type: "logout", login: false });
+    // });
     await chrome.runtime.sendMessage({
       type: "translated",
       text: request.message?.text,
@@ -153,6 +159,9 @@ chrome.runtime.onMessage.addListener(async (request) => {
         text: request.message?.text,
       });
     });
+    // saveButtonNode.addEventListener("click", (e) => {
+    //   console.log(request);
+    // });
   }
 });
 
@@ -171,9 +180,10 @@ chrome.runtime.onMessage.addListener(async (request) => {
   const suggestionText = nodes.querySelector(".content-suggestion-text-p");
   const translatedText = nodes.querySelector(".content-translated-text");
   const loginButton = nodes.querySelector(".login-button");
+  const saveButtonNode = nodes.querySelector(".save-button");
   const loader = nodes.querySelector(".loader");
   const loaderSuggestionText = nodes.querySelector(".loader-suggestion-text");
-  console.log(request.type);
+  // console.log(request.type);
   if (request.type === "translated") {
     const message = await request.message;
     loader.style = "display: none";
@@ -185,19 +195,53 @@ chrome.runtime.onMessage.addListener(async (request) => {
     suggestionText.innerText = message.data;
   }
   if (request.type === "login" && request.message.login) {
-    loginButton.innerText = "Save to notion";
+    console.log("cursor", request.message);
+    saveButtonNode.removeAttribute("disabled");
+    saveButtonNode.style = "cursor: pointer";
+    loginButton.innerText = "Logout";
   }
   if (request.type === "login" && !request.message.login) {
     loginButton.innerText = "Login with notion";
   }
   if (request.type === "logout") {
+    saveButtonNode.setAttribute("disabled", "");
+    saveButtonNode.style = "cursor: not-allowed";
     loginButton.innerText = "Login with notion";
   }
+  saveButtonNode.addEventListener("click", async (e) => {
+    console.log(e);
+    if (request.type === "openModal") {
+      console.log(request);
+      saveButtonNode.textContent = "Saving...";
+      await chrome.runtime.sendMessage({
+        type: "save",
+        data: request?.message?.text,
+      });
+    }
+  });
+
   if (request.type === "createPage") {
     console.log("Page created");
-    loginButton.innerText = "Save to notion";
+    saveButtonNode.textContent = "Save to notion";
   }
 });
+
+// chrome.runtime.onMessage.addListener(async (request) => {
+//   const rootNode = document.querySelector(".root");
+//   const nodes = rootNode.shadowRoot;
+
+//   const saveButtonNode = nodes.querySelector(".save-button");
+//   saveButtonNode.addEventListener("click", async (e) => {
+//     console.log(e);
+//     if (request.type === "openModal") {
+//       console.log(request);
+//       await chrome.runtime.sendMessage({
+//         type: "save",
+//         data: request?.message?.text,
+//       });
+//     }
+//   });
+// });
 
 function createElement(element, className, content = "Hello World") {
   const ele = document.createElement(element);
@@ -328,6 +372,23 @@ function createStyle() {
   }
 
   .login-button {
+    background: none;
+    border: none;
+    border-radius: 4px;
+    background: rgb(18, 18, 18);
+    cursor: pointer;
+    align-self: flex-end;
+    font-size: 1rem;
+    padding: .25rem .875rem;
+    margin-top: 1rem;
+    min-width: 148px;
+  }
+
+  .save-button[disabled] {
+    cursor: not-allowed
+  }
+
+  .save-button {
     background: none;
     border: none;
     border-radius: 4px;
